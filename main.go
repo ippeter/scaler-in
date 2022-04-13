@@ -26,14 +26,19 @@ v1.4
 - get sum of available resources (Allocatable - sum(R, L))
 - final output is pretty
 
-v1.x
+v1.5
+- check if pod is controlled by DaemonSet. Otherwise, get stats on this pod
+- TIME_TO_WATCH environment variable, and think how to watch for several iterations
+- environment variables via ConfigMap
+
+
+Backlog:
 - mark host unschedulable
 - evict all user pods
-- environment variables via ConfigMap
 - write node usage to file
 - read node usage from file
 - KEEP_LARGE_NODES environment variable
-- TIME_TO_WATCH environment variable
+
 
 
 */
@@ -91,8 +96,9 @@ type containerResources struct {
 }
 
 type podResources struct {
-	Namespace  string
-	Containers map[string]containerResources
+	Namespace             string
+	ControlledByDaemonSet bool
+	Containers            map[string]containerResources
 }
 
 type nodeStats struct {
@@ -270,10 +276,20 @@ func main() {
 			for _, p := range pods.Items {
 				newPod.Namespace = p.ObjectMeta.Namespace
 				newPod.Containers = make(map[string]containerResources)
+				newPod.ControlledByDaemonSet = false
 
+				// Check whether pod is controlled by DaemonSet
+				if len(p.ObjectMeta.OwnerReferences) > 0 {
+					for _, o := range p.ObjectMeta.OwnerReferences {
+						if o.Kind == "DaemonSet" {
+							log.Infof("Pod %s is controlled by DaemonSet", p.ObjectMeta.Name)
+							newPod.ControlledByDaemonSet = true
+						}
+					}
+				}
+
+				// Process pod containers
 				for _, c := range p.Spec.Containers {
-					//log.Infof("Container %s, Requests: %v", c.Name, c.Resources.Requests)
-
 					// Handle Requests and Limits
 					if len(c.Resources.Requests) > 0 {
 						containerCPURequest := c.Resources.Requests["cpu"]
@@ -365,7 +381,7 @@ func main() {
 				oneNodeCompactStats.sumMemoryLimits = 0
 
 				for _, p := range ns.Pods {
-					if p.Namespace != "kube-system" && p.Namespace != "kube-public" && p.Namespace != "kube-node-lease" {
+					if !p.ControlledByDaemonSet {
 						for _, c := range p.Containers {
 							oneNodeCompactStats.sumCPURequests = oneNodeCompactStats.sumCPURequests + c.RequestsAndLimits.CPURequest
 							oneNodeCompactStats.sumMemoryRequests = oneNodeCompactStats.sumMemoryRequests + c.RequestsAndLimits.MemoryRequest
