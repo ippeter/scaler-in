@@ -433,7 +433,8 @@ func main() {
 			}
 
 			if found {
-				//DO SOMETHING
+				// DEBUG
+				log.Infof("Host %s is a candidate for scale-in!", oneNodeCompactStats.Name)
 			} else {
 				log.Info("No host suitable for scale-in found :(")
 			}
