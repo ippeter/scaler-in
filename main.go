@@ -24,7 +24,7 @@ v1.3
 v1.4
 - get host with max CPU/RAM and min(sum(Requests)) and min(sum(Limits))
 - get sum of available resources (Allocatable - sum(R, L))
--
+- final output is pretty
 
 v1.x
 - mark host unschedulable
@@ -44,6 +44,7 @@ package main
 import (
 	"context"
 	"os"
+	"sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -107,6 +108,7 @@ type nodeStats struct {
 
 type compactNodeStats struct {
 	Name              string
+	UID               string
 	CPUAllocatable    float64
 	MemoryAllocatable int64
 	sumCPURequests    float64
@@ -149,10 +151,24 @@ var newNode nodeStats
 var newPod podResources
 var newContainer containerResources
 var nodeUID string
-var allNodesCompactStats map[string]compactNodeStats
+var allNodesCompactStats []compactNodeStats
 var oneNodeCompactStats compactNodeStats
+var availableCPURequests float64
+var availableCPULimits float64
 var p podResources
 var c containerResources
+var k, keyOfMax int
+var found bool
+
+type ByCPUAllocatable []compactNodeStats
+
+func (cns ByCPUAllocatable) Len() int      { return len(cns) }
+func (cns ByCPUAllocatable) Swap(i, j int) { cns[i], cns[j] = cns[j], cns[i] }
+func (cns ByCPUAllocatable) Less(i, j int) bool {
+	return cns[i].CPUAllocatable < cns[j].CPUAllocatable
+}
+
+var tmpCompactStats ByCPUAllocatable
 
 func main() {
 
@@ -330,7 +346,7 @@ func main() {
 			//
 			// Calculate CPU/Memory usage for each node and make compactNodesUsage
 			//
-			allNodesCompactStats = make(map[string]compactNodeStats)
+			allNodesCompactStats = make([]compactNodeStats, 0, len(allNodes))
 
 			for uid, ns := range allNodes {
 				log.Infof("Node UID: %s", uid)
@@ -338,6 +354,7 @@ func main() {
 				log.Infof("Node %s: Memory Used: %d, Memory Allocatable: %d, Memory Usage: %.2f", ns.Name, ns.NodeUsage.MemoryUsage, ns.MemoryAllocatable, float64(ns.NodeUsage.MemoryUsage)/float64(ns.MemoryAllocatable))
 
 				oneNodeCompactStats.Name = ns.Name
+				oneNodeCompactStats.UID = uid
 				oneNodeCompactStats.countsPassed = 0
 				oneNodeCompactStats.CPUAllocatable = ns.CPUAllocatable
 				oneNodeCompactStats.MemoryAllocatable = ns.MemoryAllocatable
@@ -358,14 +375,68 @@ func main() {
 					}
 				}
 
-				allNodesCompactStats[uid] = oneNodeCompactStats
+				allNodesCompactStats = append(allNodesCompactStats, oneNodeCompactStats)
 			}
 
-			// DEBUG output
-			//prettyNodes, _ = json.MarshalIndent(allNodes, "", "    ")
-			//fmt.Println(string(prettyNodes))
-			//log.Infof("%+v", allNodes)
-			log.Infof("%+v", allNodesCompactStats)
+			// DEBUG output, just to make sure we have all required info on all nodes
+			for _, cns := range allNodesCompactStats {
+				log.Infof("Node UID: %s, Name: %s, CPU Allocatable: %.2f, Total CPU Requests: %.2f, Total CPU Limits: %.2f", cns.UID, cns.Name, cns.CPUAllocatable, cns.sumCPURequests, cns.sumCPULimits)
+			}
+
+			// Copy allNodesCompactStats into temp slice
+			tmpCompactStats := make(ByCPUAllocatable, len(allNodesCompactStats))
+			copy(tmpCompactStats, allNodesCompactStats)
+			// DEBUG
+			log.Infof("Length of tmpCompactStats: %d", len(tmpCompactStats))
+
+			// Sort by CPUAllocatable
+			sort.Sort(tmpCompactStats)
+
+			// DEBUG output, just to make sure we have all required info on all nodes
+			log.Infof("Length of the list sorted by CPUAllocatable: %d", len(tmpCompactStats))
+			for _, cns := range tmpCompactStats {
+				log.Infof("Node UID: %s, Name: %s, CPU Allocatable: %.2f, Total CPU Requests: %.2f, Total CPU Limits: %.2f", cns.UID, cns.Name, cns.CPUAllocatable, cns.sumCPURequests, cns.sumCPULimits)
+			}
+
+			// Loop through temp slice until we find a scale-in candidate
+			found = false
+
+			for {
+				// Find node with max CPUAllocatable
+				keyOfMax = len(tmpCompactStats) - 1
+				oneNodeCompactStats = tmpCompactStats[keyOfMax]
+
+				// Caclulate available CPU resources on other
+				availableCPURequests = 0.0
+				availableCPULimits = 0.0
+
+				for _, v := range allNodesCompactStats {
+					if v.UID != oneNodeCompactStats.UID {
+						availableCPURequests = availableCPURequests + v.CPUAllocatable - v.sumCPURequests
+						availableCPULimits = availableCPULimits + v.CPUAllocatable - v.sumCPULimits
+					}
+				}
+
+				// Check if node with max CPUAllocatable fits into other
+				if oneNodeCompactStats.sumCPURequests <= availableCPURequests && oneNodeCompactStats.sumCPULimits <= availableCPULimits {
+					found = true
+					break
+				}
+
+				// Remove last element from temp slice
+				tmpCompactStats = tmpCompactStats[:len(tmpCompactStats)-1]
+
+				// Check if temp slice is empty. If it is, we didn't find any scale-in options :(
+				if len(tmpCompactStats) == 0 {
+					break
+				}
+			}
+
+			if found {
+				//DO SOMETHING
+			} else {
+				log.Info("No host suitable for scale-in found :(")
+			}
 
 		} else {
 			log.Warn("There is only 1 node in the cluster, nothing to do")
