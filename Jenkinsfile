@@ -1,6 +1,7 @@
  pipeline {
   environment {
-    registry = "ippeter/scaler-in"
+    swrImage = "swr.ru-moscow-1.hc.sbercloud.ru/cloud-devops/scaler-in"
+    swrCredentials = "SWR_Credentials"
   }
   
   agent any
@@ -21,22 +22,21 @@
     stage('Build Image') {
       steps {
         script {
-          dockerImage = docker.build(registry + ":1.4.${env.BUILD_NUMBER}")
+          dockerImage = docker.build(swrImage)
         }
       }
     }
-    
-    /*
-    stage('Push Image') {
+   
+    stage('Push Image to SWR') {
       steps {
         script {
-          docker.withRegistry( '', registryCredential ) {
-            dockerImage.push()
+          docker.withRegistry('https://swr-api.ru-moscow-1.hc.sbercloud.ru', swrCredentials) {
+            dockerImage.push("1.4.${env.BUILD_NUMBER}")
+            dockerImage.push("latest")
           }
         }
       }
     }
-    */
 
     /*
     stage('Deploy Image') {
