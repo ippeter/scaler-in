@@ -3,14 +3,14 @@
     registry = "ippeter/scaler-in"
   }
   
-  agent any
+  agent { dockerfile true }
   
   stages {
 
     stage('Build Image') {
       steps {
         script {
-          dockerImage = docker.build registry + ":1.4.$BUILD_NUMBER"
+          dockerImage = docker.build(registry + ":1.4.${env.BUILD_NUMBER}")
         }
       }
     }
