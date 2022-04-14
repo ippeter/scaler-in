@@ -6,6 +6,14 @@
   agent any
   
   stages {
+   
+    stage('Build Application') {
+      steps {
+        script {
+          sh "GOOS=linux go build -o ./app ."
+        }
+      }
+    }
 
     stage('Build Image') {
       steps {
