@@ -30,7 +30,7 @@
     stage('Push Image to SWR') {
       steps {
         script {
-          docker.withRegistry('swr.ru-moscow-1.hc.sbercloud.ru', swrCredentials) {
+          docker.withRegistry('https://swr.ru-moscow-1.hc.sbercloud.ru', swrCredentials) {
             dockerImage.push("1.4.${env.BUILD_NUMBER}")
             dockerImage.push("latest")
           }
