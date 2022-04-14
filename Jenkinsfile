@@ -11,7 +11,7 @@
       steps {
         script {
           sh '''#!/bin/bash
-                env
+                export PATH=$PATH:/usr/local/go/bin
                 GOOS=linux go build -o ./app . 
          '''
         }
