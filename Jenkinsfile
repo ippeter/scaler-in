@@ -10,7 +10,9 @@
     stage('Build Application') {
       steps {
         script {
-          sh "GOOS=linux go build -o ./app ."
+          sh '''#!/bin/bash
+                GOOS=linux go build -o ./app . 
+         '''
         }
       }
     }
