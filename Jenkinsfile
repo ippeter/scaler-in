@@ -3,7 +3,7 @@
     registry = "ippeter/scaler-in"
   }
   
-  agent { dockerfile true }
+  agent any
   
   stages {
 
