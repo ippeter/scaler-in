@@ -47,7 +47,7 @@
             if kubectl get deployment | grep -q scaler-in
             then
               echo "Deployment found, updating..."
-              kubectl set image deployment/scaler-in scaler-in="$swrImage:1.4.${env.BUILD_NUMBER}"
+              kubectl set image deployment/scaler-in scaler-in="$swrImage:1.4.$BUILD_NUMBER"
             else
               echo "Deployment not found Exiting..."
             fi
