@@ -63,8 +63,7 @@
           sh '''
           #!/bin/bash
           MESSAGE="Image $swrImage:1.4.$BUILD_NUMBER deployed"
-          echo $MESSAGE
-          curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot${strBotID}/sendMessage -d \'{"chat_id": 455547475, "text": ${MESSAGE}, "parse_mode": "HTML"}\'
+          curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot${strBotID}/sendMessage -d \'{"chat_id": 455547475, "text": "'"$MESSAGE"'", "parse_mode": "HTML"}\'
           '''        
         }
       }
