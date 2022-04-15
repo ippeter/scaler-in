@@ -2,6 +2,7 @@
   environment {
     swrImage = "swr.ru-moscow-1.hc.sbercloud.ru/cloud-devops/scaler-in"
     swrCredentials = "SWR_Credentials"
+    telegramBotID = "Telegram_Bot_ID"
   }
   
   agent any
@@ -57,13 +58,16 @@
     }
 
     stage('Send Confirmation to Telegram') {
-      steps {        
-        sh '''
-        #!/bin/bash
-        MESSAGE="Image $swrImage:1.4.$BUILD_NUMBER deployed"
-        echo $MESSAGE
-        curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot/sendMessage -d \'{"chat_id": 455547475, "text": \$MESSAGE, "parse_mode": "HTML"}\'
-        '''        
+      steps {
+        withCredentials([string(credentialsId: telegramBotID, variable: 'strBotID')]) {
+          sh '''
+          #!/bin/bash
+          MESSAGE="Image $swrImage:1.4.$BUILD_NUMBER deployed"
+          echo $MESSAGE
+          echo ${strBotID}
+          curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot${strBotID}/sendMessage -d \'{"chat_id": 455547475, "text": \\$MESSAGE, "parse_mode": "HTML"}\'
+          '''        
+        }
       }
     } 
 
