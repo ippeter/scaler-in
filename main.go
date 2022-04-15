@@ -437,7 +437,7 @@ func main() {
 				// DEBUG Output on each node
 				//
 				log.Infof("Candidate: node %s", oneNodeCompactStats.Name)
-				log.Infof("It has SUM CPU requests: %d, while available are: %d", oneNodeCompactStats.sumCPURequests, availableCPURequests)
+				log.Infof("It has SUM CPU requests: %.2f, while available are: %.2f", oneNodeCompactStats.sumCPURequests, availableCPURequests)
 				log.Infof("It has SUM CPU limits: %d, while available are: %d", oneNodeCompactStats.sumCPULimits, availableCPULimits)
 
 				// Check if node with max CPUAllocatable fits into other
