@@ -8,7 +8,7 @@
   agent any
   
   stages {
-    /*
+    
     stage('Build Application') {
       steps {
         script {
@@ -56,7 +56,7 @@
         }
       }
     }
-    */
+    
     stage('Send Confirmation to Telegram') {
       steps {
         withCredentials([string(credentialsId: telegramBotID, variable: 'strBotID')]) {
