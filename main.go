@@ -50,6 +50,7 @@ import (
 	"context"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -165,6 +166,7 @@ var p podResources
 var c containerResources
 var k, keyOfMax int
 var found bool
+var timeToSleep int
 
 type ByCPUAllocatable []compactNodeStats
 
@@ -177,6 +179,12 @@ func (cns ByCPUAllocatable) Less(i, j int) bool {
 var tmpCompactStats ByCPUAllocatable
 
 func main() {
+
+	if len(os.Getenv("TIME_TO_SLEEP")) > 0 {
+		timeToSleep, _ = strconv.Atoi(os.Getenv("TIME_TO_SLEEP"))
+	} else {
+		timeToSleep = 600
+	}
 
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
@@ -490,6 +498,6 @@ func main() {
 			}
 		*/
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(timeToSleep) * time.Second)
 	}
 }
