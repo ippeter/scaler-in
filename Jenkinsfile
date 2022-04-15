@@ -60,7 +60,7 @@
       steps {        
         sh '''
         #!/bin/bash
-        curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot1307427769:AAEuVTyJ4R48d-Wk5A712mj5cffiTBcbGRY/sendMessage -d \\'{"chat_id": 455547475, "text": "Image $swrImage:1.4.${env.BUILD_NUMBER} deployed", "parse_mode": "HTML"}\\'
+        curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot1307427769:AAEuVTyJ4R48d-Wk5A712mj5cffiTBcbGRY/sendMessage -d \'{"chat_id": 455547475, "text": "Image $swrImage:1.4.${env.BUILD_NUMBER} deployed", "parse_mode": "HTML"}\'
         '''        
       }
     } 
