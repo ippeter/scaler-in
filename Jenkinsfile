@@ -3,6 +3,7 @@
     swrImage = "swr.ru-moscow-1.hc.sbercloud.ru/cloud-devops/scaler-in"
     swrCredentials = "SWR_Credentials"
     telegramBotID = "Telegram_Bot_ID"
+    majorVersion = "1.6"
   }
   
   agent any
@@ -14,6 +15,7 @@
         script {
           sh '''
             #!/bin/bash
+            echo "Building version $majorVersion.$BUILD_NUMBER"
             export PATH=$PATH:/usr/local/go/bin
             GOOS=linux go build -o ./app . 
          '''
@@ -33,7 +35,7 @@
       steps {
         script {
           docker.withRegistry('https://swr.ru-moscow-1.hc.sbercloud.ru', swrCredentials) {
-            dockerImage.push("1.4.${env.BUILD_NUMBER}")
+            dockerImage.push("$majorVersion.$BUILD_NUMBER")
             dockerImage.push("latest")
           }
         }
@@ -48,7 +50,7 @@
             if kubectl get deployment | grep -q scaler-in
             then
               echo "Deployment found, updating..."
-              kubectl set image deployment/scaler-in scaler-in="$swrImage:1.4.$BUILD_NUMBER"
+              kubectl set image deployment/scaler-in scaler-in="$swrImage:$majorVersion.$BUILD_NUMBER"
             else
               echo "Deployment not found Exiting..."
             fi
@@ -62,7 +64,7 @@
         withCredentials([string(credentialsId: telegramBotID, variable: 'strBotID')]) {
           sh '''
           #!/bin/bash
-          MESSAGE="Image $swrImage:1.4.$BUILD_NUMBER deployed"
+          MESSAGE="Image $swrImage:$majorVersion.$BUILD_NUMBER deployed"
           curl -H "Content-Type: application/json" -X POST https://api.telegram.org/bot${strBotID}/sendMessage -d \'{"chat_id": 455547475, "text": "'"$MESSAGE"'", "parse_mode": "HTML"}\'
           '''        
         }
