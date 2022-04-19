@@ -31,15 +31,16 @@ v1.5
 - TIME_TO_WATCH environment variable, and think how to watch for several iterations
 - environment variables via ConfigMap
 
-
-Backlog:
+v1.6
+- softer check for available Limits
 - mark host unschedulable
 - evict all user pods
+
+
+Backlog:
 - write node usage to file
 - read node usage from file
 - KEEP_LARGE_NODES environment variable
-
-
 
 */
 
@@ -155,18 +156,14 @@ var nodesUIDByName map[string]string
 var prettyNodes []byte
 var prettyPods []byte
 var newNode nodeStats
-var newPod podResources
-var newContainer containerResources
-var nodeUID string
+var p, newPod podResources
+var c, newContainer containerResources
 var allNodesCompactStats []compactNodeStats
 var oneNodeCompactStats compactNodeStats
-var availableCPURequests float64
-var availableCPULimits float64
-var p podResources
-var c containerResources
-var k, keyOfMax int
-var found bool
-var timeToSleep int
+var nodeUID, candidateToRemoval string
+var availableCPURequests, availableCPULimits, maxCPULimits float64
+var k, keyOfMax, timeToSleep int
+var found, maxLimitsSet bool
 
 type ByCPUAllocatable []compactNodeStats
 
@@ -424,6 +421,7 @@ func main() {
 
 			// Loop through temp slice until we find a scale-in candidate
 			found = false
+			maxLimitsSet = false
 
 			for {
 				// Find node with max CPUAllocatable
@@ -448,10 +446,24 @@ func main() {
 				log.Infof("It has SUM CPU requests: %.2f, while available are: %.2f", oneNodeCompactStats.sumCPURequests, availableCPURequests)
 				log.Infof("It has SUM CPU limits: %.2f, while available are: %.2f", oneNodeCompactStats.sumCPULimits, availableCPULimits)
 
-				// Check if node with max CPUAllocatable fits into other
-				if oneNodeCompactStats.sumCPURequests <= availableCPURequests && oneNodeCompactStats.sumCPULimits <= availableCPULimits {
+				// Check if node with max CPUAllocatable fits into other nodes
+				if oneNodeCompactStats.sumCPURequests <= availableCPURequests {
 					found = true
-					break
+
+					if !maxLimitsSet {
+						maxLimitsSet = true
+						maxCPULimits = availableCPULimits - oneNodeCompactStats.sumCPULimits
+
+						// TODO: Maybe we will need more details on this node: need to see how to taint the node
+						candidateToRemoval = oneNodeCompactStats.Name
+					} else {
+						if availableCPULimits-oneNodeCompactStats.sumCPULimits > maxCPULimits {
+							maxCPULimits = availableCPULimits - oneNodeCompactStats.sumCPULimits
+
+							// TODO: Maybe we will need more details on this node: need to see how to taint the node
+							candidateToRemoval = oneNodeCompactStats.Name
+						}
+					}
 				}
 
 				// Remove last element from temp slice
@@ -465,7 +477,7 @@ func main() {
 
 			if found {
 				// DEBUG
-				log.Infof("Host %s is a candidate for scale-in!", oneNodeCompactStats.Name)
+				log.Infof("Host %s is a candidate for scale-in! Situation with CPU Limits: %.2f", candidateToRemoval, maxCPULimits)
 			} else {
 				log.Info("No host suitable for scale-in found :(")
 			}
