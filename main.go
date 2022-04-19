@@ -57,6 +57,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	//"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -478,6 +479,15 @@ func main() {
 			if found {
 				// DEBUG
 				log.Infof("Host %s is a candidate for scale-in! Situation with CPU Limits: %.2f", candidateToRemoval, maxCPULimits)
+
+				// Cordon the node
+				_, err := clientset.CoreV1().Nodes().Patch(context.TODO(), candidateToRemoval, types.StrategicMergePatchType, []byte("{\"spec\":{\"unschedulable\":true}}"), metav1.PatchOptions{})
+				if err != nil {
+					log.WithFields(log.Fields{
+						"when": "Cordon the node",
+					}).Error(err.Error())
+				}
+
 			} else {
 				log.Info("No host suitable for scale-in found :(")
 			}
