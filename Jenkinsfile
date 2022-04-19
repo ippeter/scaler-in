@@ -15,7 +15,7 @@
         script {
           sh '''
             #!/bin/bash
-            echo "Building version $majorVersion, $CUSTOM_BUILD_NUMBER"
+            echo "Building version $majorVersion.$BUILD_NUMBER"
             export PATH=$PATH:/usr/local/go/bin
             GOOS=linux go build -o ./app . 
          '''
@@ -35,7 +35,7 @@
       steps {
         script {
           docker.withRegistry('https://swr.ru-moscow-1.hc.sbercloud.ru', swrCredentials) {
-            dockerImage.push("$majorVersion.${env.BUILD_NUMBER}")
+            dockerImage.push("$majorVersion.$BUILD_NUMBER")
             dockerImage.push("latest")
           }
         }
