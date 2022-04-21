@@ -3,7 +3,7 @@
     swrImage = "swr.ru-moscow-1.hc.sbercloud.ru/cloud-devops/scaler-in"
     swrCredentials = "SWR_Credentials"
     telegramBotID = "Telegram_Bot_ID"
-    majorVersion = "1.6"
+    majorVersion = "1.7"
   }
   
   agent any

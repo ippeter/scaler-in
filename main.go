@@ -37,8 +37,8 @@ v1.6
 - check whether the app itself is on the candidate node
 
 v1.7
-- delete the node from cluster
 - evict all user pods
+- delete the node from cluster
 - delete the VM from cloud
 
 
@@ -65,6 +65,8 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	//policyv1beta1 "k8s.io/api/policy/v1beta1"
 
 	//"k8s.io/client-go/tools/clientcmd"
 
@@ -159,14 +161,17 @@ func GetContainerUsageByName(podMetrics []v1beta1.PodMetrics, podName string, co
 
 var allNodes map[string]nodeStats
 var nodesUIDByName map[string]string
-var prettyNodes []byte
-var prettyPods []byte
+
+//var prettyNodes []byte
+//var prettyPods []byte
 var newNode nodeStats
 var p, newPod podResources
 var c, newContainer containerResources
 var allNodesCompactStats []compactNodeStats
 var oneNodeCompactStats compactNodeStats
-var nodeUID, candidateToRemoval, myNodeName string
+
+//var evictionPolicy eviction.Eviction
+var nodeUID, candidateName, candidateUID, myNodeName, podName string
 var availableCPURequests, availableCPULimits, maxCPULimits float64
 var k, keyOfMax, timeToSleep int
 var found, maxLimitsSet bool
@@ -461,13 +466,15 @@ func main() {
 						maxCPULimits = availableCPULimits - oneNodeCompactStats.sumCPULimits
 
 						// TODO: Maybe we will need more details on this node: need to see how to taint the node
-						candidateToRemoval = oneNodeCompactStats.Name
+						candidateName = oneNodeCompactStats.Name
+						candidateUID = oneNodeCompactStats.UID
 					} else {
 						if availableCPULimits-oneNodeCompactStats.sumCPULimits > maxCPULimits {
 							maxCPULimits = availableCPULimits - oneNodeCompactStats.sumCPULimits
 
 							// TODO: Maybe we will need more details on this node: need to see how to taint the node
-							candidateToRemoval = oneNodeCompactStats.Name
+							candidateName = oneNodeCompactStats.Name
+							candidateUID = oneNodeCompactStats.UID
 						}
 					}
 				}
@@ -483,17 +490,17 @@ func main() {
 
 			if found {
 				// DEBUG
-				log.Infof("Host %s is a candidate for scale-in! Situation with CPU Limits: %.2f. Cordoning it now...", candidateToRemoval, maxCPULimits)
+				log.Infof("Host %s is a candidate for scale-in! Situation with CPU Limits: %.2f. Cordoning it now...", candidateName, maxCPULimits)
 
 				// Cordon the node
-				_, err := clientset.CoreV1().Nodes().Patch(context.TODO(), candidateToRemoval, types.StrategicMergePatchType, []byte("{\"spec\":{\"unschedulable\":true}}"), metav1.PatchOptions{})
+				_, err := clientset.CoreV1().Nodes().Patch(context.TODO(), candidateName, types.StrategicMergePatchType, []byte("{\"spec\":{\"unschedulable\":true}}"), metav1.PatchOptions{})
 				if err != nil {
 					log.WithFields(log.Fields{
 						"when": "Cordon the node",
 					}).Error(err.Error())
 				}
 
-				log.Infof("Host %s conrdoned successfully.", candidateToRemoval)
+				log.Infof("Host %s conrdoned successfully.", candidateName)
 
 				// Check whether THIS app itself is on the candidate node
 				if len(os.Getenv("MY_NODE_NAME")) > 0 {
@@ -503,10 +510,25 @@ func main() {
 					os.Exit(1)
 				}
 
-				if myNodeName == candidateToRemoval {
+				if myNodeName == candidateName {
 					log.Warn("The app is running on the same host, which is the candidate for removal!")
+					// This will terminate the app, and it will be restarted on another node
+					os.Exit(1)
 				} else {
 					log.Infof("The app is running on the host %s", myNodeName)
+
+					for podName, p := range allNodes[candidateUID].Pods {
+						log.Infof("Pod for eviction: %s, in namespace: %s", podName, p.Namespace)
+						/*
+							evictionPolicy := policyv1beta1.Eviction{metav1.TypeMeta{APIVersion: "policy/v1beta1", Kind: "Eviction"}, metav1.ObjectMeta{Name: "quux", Namespace: "default"}, &metav1.DeleteOptions{}}
+							err := clientset.CoreV1().Pods("").EvictV1beta1(context.TODO(), &evictionPolicy)
+							if err != nil {
+								log.WithFields(log.Fields{
+									"when": "Evict pod",
+								}).Error(err.Error())
+							}
+						*/
+					}
 				}
 
 			} else {
