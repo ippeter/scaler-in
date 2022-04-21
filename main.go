@@ -34,7 +34,12 @@ v1.5
 v1.6
 - softer check for available Limits
 - mark host unschedulable
+- check whether the app itself is on the candidate node
+
+v1.7
+- delete the node from cluster
 - evict all user pods
+- delete the VM from cloud
 
 
 Backlog:
@@ -161,7 +166,7 @@ var p, newPod podResources
 var c, newContainer containerResources
 var allNodesCompactStats []compactNodeStats
 var oneNodeCompactStats compactNodeStats
-var nodeUID, candidateToRemoval string
+var nodeUID, candidateToRemoval, myNodeName string
 var availableCPURequests, availableCPULimits, maxCPULimits float64
 var k, keyOfMax, timeToSleep int
 var found, maxLimitsSet bool
@@ -478,7 +483,7 @@ func main() {
 
 			if found {
 				// DEBUG
-				log.Infof("Host %s is a candidate for scale-in! Situation with CPU Limits: %.2f", candidateToRemoval, maxCPULimits)
+				log.Infof("Host %s is a candidate for scale-in! Situation with CPU Limits: %.2f. Cordoning it now...", candidateToRemoval, maxCPULimits)
 
 				// Cordon the node
 				_, err := clientset.CoreV1().Nodes().Patch(context.TODO(), candidateToRemoval, types.StrategicMergePatchType, []byte("{\"spec\":{\"unschedulable\":true}}"), metav1.PatchOptions{})
@@ -486,6 +491,22 @@ func main() {
 					log.WithFields(log.Fields{
 						"when": "Cordon the node",
 					}).Error(err.Error())
+				}
+
+				log.Infof("Host %s conrdoned successfully.", candidateToRemoval)
+
+				// Check whether THIS app itself is on the candidate node
+				if len(os.Getenv("MY_NODE_NAME")) > 0 {
+					myNodeName = os.Getenv("MY_NODE_NAME")
+				} else {
+					log.Error("Environment variable MY_NODE_NAME not found!")
+					os.Exit(1)
+				}
+
+				if myNodeName == candidateToRemoval {
+					log.Warn("The app is running on the same host, which is the candidate for removal!")
+				} else {
+					log.Infof("The app is running on the host %s", myNodeName)
 				}
 
 			} else {
