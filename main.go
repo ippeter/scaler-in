@@ -534,7 +534,6 @@ func main() {
 								},
 								DeleteOptions: &metav1.DeleteOptions{},
 							}
-							log.Infof("%v", evictionPolicy)
 
 							err := clientset.CoreV1().Pods(p.Namespace).EvictV1beta1(context.TODO(), &evictionPolicy)
 							if err != nil {
@@ -545,6 +544,16 @@ func main() {
 								log.Infof("Pod %s evicted successfully  ", podName)
 							}
 						}
+					}
+
+					// Delete candidate node from cluster
+					err := clientset.CoreV1().Nodes().Delete(context.TODO(), candidateName, metav1.DeleteOptions{})
+					if err != nil {
+						log.WithFields(log.Fields{
+							"when": "Delete node",
+						}).Error(err.Error())
+					} else {
+						log.Infof("Node %s deleted successfully!", candidateName)
 					}
 				}
 
