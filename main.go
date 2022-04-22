@@ -66,7 +66,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	//policyv1beta1 "k8s.io/api/policy/v1beta1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 
 	//"k8s.io/client-go/tools/clientcmd"
 
@@ -518,16 +518,22 @@ func main() {
 					log.Infof("The app is running on the host %s", myNodeName)
 
 					for podName, p := range allNodes[candidateUID].Pods {
-						log.Infof("Pod for eviction: %s, in namespace: %s", podName, p.Namespace)
-						/*
+						if p.ControlledByDaemonSet {
+							log.Infof("Pod %s in namespace %s is controlled by DaemonSet. It will not be evicted.", podName, p.Namespace)
+						} else {
+							log.Infof("Pod for eviction: %s, in namespace: %s", podName, p.Namespace)
+
 							evictionPolicy := policyv1beta1.Eviction{metav1.TypeMeta{APIVersion: "policy/v1beta1", Kind: "Eviction"}, metav1.ObjectMeta{Name: "quux", Namespace: "default"}, &metav1.DeleteOptions{}}
+
 							err := clientset.CoreV1().Pods("").EvictV1beta1(context.TODO(), &evictionPolicy)
 							if err != nil {
 								log.WithFields(log.Fields{
 									"when": "Evict pod",
 								}).Error(err.Error())
+							} else {
+								log.Infof("Pod %s evicted successfully  ", podName)
 							}
-						*/
+						}
 					}
 				}
 
