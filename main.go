@@ -523,10 +523,20 @@ func main() {
 						} else {
 							log.Infof("Pod for eviction: %s, in namespace: %s", podName, p.Namespace)
 
-							evictionPolicy := policyv1beta1.Eviction{metav1.TypeMeta{APIVersion: "policy/v1beta1", Kind: "Eviction"}, metav1.ObjectMeta{Name: podName, Namespace: p.Namespace}, &metav1.DeleteOptions{}}
+							evictionPolicy := policyv1beta1.Eviction{
+								TypeMeta: metav1.TypeMeta{
+									APIVersion: "policy/v1beta1",
+									Kind:       "Eviction",
+								},
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      podName,
+									Namespace: p.Namespace,
+								},
+								DeleteOptions: &metav1.DeleteOptions{},
+							}
 							log.Infof("%v", evictionPolicy)
 
-							err := clientset.CoreV1().Pods("").EvictV1beta1(context.TODO(), &evictionPolicy)
+							err := clientset.CoreV1().Pods(p.Namespace).EvictV1beta1(context.TODO(), &evictionPolicy)
 							if err != nil {
 								log.WithFields(log.Fields{
 									"when": "Evict pod",
